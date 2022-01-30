@@ -15,8 +15,6 @@
 #include <future>
 #include <cmath>
 
-#define SERVER_PORT 1235
-
 using type = double;
 using Matrix = type * *;
 using size = std::size_t;
@@ -79,8 +77,6 @@ Matrix subtract(Matrix A, Matrix B, size N) {
     return C;
 }
 
-
-// Strassen's Algorithm
 Matrix strassen(Matrix A, Matrix B, size N) {
     if (N == 1) {
         Matrix C = createMatrix(N);
@@ -119,17 +115,6 @@ Matrix strassen(Matrix A, Matrix B, size N) {
         }
     }
 
-    /*Matrix S1 = subtract(B12, B22, K);
-    Matrix S2 = add(A11, A12, K);
-    Matrix S3 = add(A21, A22, K);
-    Matrix S4 = subtract(B21, B11, K);
-    Matrix S5 = add(A11, A22, K);
-    Matrix S6 = add(B11, B22, K);
-    Matrix S7 = subtract(A12, A22, K);
-    Matrix S8 = add(B21, B22, K);
-    Matrix S9 = subtract(A11, A21, K);
-    Matrix S10 = add(B11, B12, K);*/
-
     auto future1 = std::async(std::launch::async, subtract, B12, B22, K);
     auto future2 = std::async(std::launch::async, add, A11, A12, K);
     auto future3 = std::async(std::launch::async, add, A21, A22, K);
@@ -142,57 +127,27 @@ Matrix strassen(Matrix A, Matrix B, size N) {
     auto future10 = std::async(std::launch::async, add, B11, B12, K);
 
     const Matrix S1 = future1.get();
-	future1 = std::async(std::launch::async, strassen, A11, S1, K);
-	const Matrix S2 = future2.get();
-    future2 = std::async(std::launch::async, strassen, S2, B22, K);
-	const Matrix S3 = future3.get();
-    future3 = std::async(std::launch::async, strassen, S3, B11, K);
-	const Matrix S4 = future4.get();
-    future4 = std::async(std::launch::async, strassen, A22, S4, K);
-	const Matrix S5 = future5.get();
-	const Matrix S6 = future6.get();
-    future5 = std::async(std::launch::async, strassen, S5, S6, K);
-	const Matrix S7 = future7.get();
+    const Matrix S2 = future2.get();
+    const Matrix S3 = future3.get();
+    const Matrix S4 = future4.get();
+    const Matrix S5 = future5.get();
+    const Matrix S6 = future6.get();
+    const Matrix S7 = future7.get();
 	const Matrix S8 = future8.get();
-    future6 = std::async(std::launch::async, strassen, S7, S8, K);
-	const Matrix S9 = future9.get();
+    const Matrix S9 = future9.get();
 	const Matrix S10 = future10.get();
+	future1 = std::async(std::launch::async, strassen, A11, S1, K);
+    future2 = std::async(std::launch::async, strassen, S2, B22, K);
+    future3 = std::async(std::launch::async, strassen, S3, B11, K);
+    future4 = std::async(std::launch::async, strassen, A22, S4, K);
+    future5 = std::async(std::launch::async, strassen, S5, S6, K);	
+    future6 = std::async(std::launch::async, strassen, S7, S8, K);
     future7 = std::async(std::launch::async, strassen, S9, S10, K);
 
-    
     const Matrix P2 = future2.get();
     const Matrix P4 = future4.get();
     const Matrix P5 = future5.get();
     const Matrix P6 = future6.get();
-
-    /*create_result = threads[0](strassen, A11, S1, K);
-    create_result = threads[1](strassen, S2, B22, K);
-    create_result = threads[2](strassen, S3, B11, K);
-    create_result = threads[3](strassen, A22, S4, K);
-    create_result = threads[4](strassen, S5, S6, K);
-    create_result = threads[5](strassen, S7, S8, K);
-    create_result = threads[6](strassen, S9, S10, K);
-
-    threads[0].join();
-    threads[1].join();
-    threads[2].join();
-    threads[3].join();
-    threads[4].join();
-    threads[5].join();
-    threads[6].join();*/
-
-    /*Matrix P1 = strassen(A11, S1, K);
-    Matrix P2 = strassen(S2, B22, K);
-    Matrix P3 = strassen(S3, B11, K);
-    Matrix P4 = strassen(A22, S4, K);
-    Matrix P5 = strassen(S5, S6, K);
-    Matrix P6 = strassen(S7, S8, K);
-    Matrix P7 = strassen(S9, S10, K);*/
-
-    /*Matrix C11 = subtract(add(add(P5, P4, K), P6, K), P2, K);				// P5 + P4 - P2 + P6
-    Matrix C12 = add(P1, P2, K);								// P1 + P2
-    Matrix C21 = add(P3, P4, K);								// P3 + P4
-    Matrix C22 = subtract(subtract(add(P5, P1, K), P3, K), P7, K);	*/			// P1 + P5 - P3 - P7
 
     Matrix C11 = subtract(add(add(P5, P4, K), P6, K), P2, K);  // P5 + P4 - P2 + P6
     const Matrix P1 = future1.get();
@@ -223,17 +178,22 @@ void Calculate(int desc)
 {
     char buf[50];
     bzero(buf, 50);
+    std::cout << "sth\n";
     read(desc, buf, 50);
+    std::cout << "after\n";
     size s;
     sscanf(buf, ":%lu:", &s);
-    std::string b = ":" + std::to_string(s) + ":";
-    write(desc, b.c_str(), b.size());
+    std::cout << s << std::endl;
+    std::string b = std::to_string(s);
     double *Mat1 = new double[s*s];
     double *Mat2 = new double[s*s];
     for(size i = 0; i<s*s; ++i) {
+        std::cout << "loop\n";
         bzero(buf, 50);
         read(desc, buf, 50);
+        std::cout << "loop2\n";
         sscanf(buf, ";%lf,%lf;", &Mat1[i], &Mat2[i]);
+        write(desc, "a", 1);
     }
     for(size i=0; i<s; ++i) {
         for (size j = 0; j < s; ++j) {
@@ -252,7 +212,7 @@ void Calculate(int desc)
         }
         std::cout << "\n";
     }
-    toSend += ";";
+    toSend += ";$";
     write(desc, toSend.c_str(), toSend.size());
 
     pthread_exit(NULL);
@@ -265,6 +225,7 @@ void handleConnection(int connection_socket_descriptor) {
         thread.detach();
     } catch (const std::system_error& e) {
         printf("Błąd przy próbie utworzenia wątku\n");
+        close(connection_socket_descriptor);
     }
 
 }
@@ -278,13 +239,11 @@ int main(int argc, char* argv[])
    char reuse_addr_val = 1;
    struct sockaddr_in server_address;
    signal(SIGPIPE, SIG_IGN);
-
-   //inicjalizacja gniazda serwera
    
    memset(&server_address, 0, sizeof(struct sockaddr));
    server_address.sin_family = AF_INET;
    server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-   server_address.sin_port = htons(SERVER_PORT);
+   server_address.sin_port = htons(std::stoi(argv[1]));
 
    server_socket_descriptor = socket(AF_INET, SOCK_STREAM, 0);
    if (server_socket_descriptor < 0)
@@ -321,22 +280,3 @@ int main(int argc, char* argv[])
    close(server_socket_descriptor);
    return(0);
 }
-
-    /*std::string s = "";
-
-    size n = 3;
-    double M1[n*n];
-    double M2[n*n];
-
-    Matrix A = fillMatrix(M1, n);
-    Matrix B = fillMatrix(M2, n);
-
-    Matrix C = strassen(A, B, n);
-
-    for(unsigned i=0; i<n; ++i){
-        for(unsigned j=0; j<n; ++j){
-            std::cout << C[i][j] << " ";
-        }
-        std::cout << "\n";
-    }*/
-

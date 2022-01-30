@@ -5,6 +5,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.net.Socket;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 public class MultiplierGUI implements ActionListener {
@@ -19,13 +20,13 @@ public class MultiplierGUI implements ActionListener {
     ArrayList<JTextField> FirstMatrixFields;
     ArrayList<JTextField> SecondMatrixFields;
     ArrayList<JTextField> FinalMatrix;
-    JButton calc = new JButton("Multiply");
+    JButton calc;
     JLabel NFE = null;
     int size;
     int lastY;
     String[] ipList;
-    PrintWriter out;
-    BufferedReader in;
+    DataInputStream dIn;
+    Socket clSocket;
 
     public MultiplierGUI() {
         f = new JFrame();
@@ -42,7 +43,7 @@ public class MultiplierGUI implements ActionListener {
         l = new JLabel("Server IP & port (x.x.x.x:x):");
         l.setBounds(20, 20, 170, 30);
         tfIp = new JTextField();
-        tfIp.setBounds(20, 45, 100, 20);
+        tfIp.setBounds(20, 45, 120, 20);
         f.add(l);
         f.add(tfIp);
         f.setSize(300, 500);
@@ -61,7 +62,7 @@ public class MultiplierGUI implements ActionListener {
             ipList = ip.split(":");
             if(ipList.length != 2){
                 NFE = new JLabel("Invalid IP address!");
-                NFE.setBounds(120, 45, 120, 20);
+                NFE.setBounds(150, 45, 120, 20);
                 f.add(NFE);
                 SwingUtilities.updateComponentTreeUI(f);
                 return;
@@ -70,7 +71,7 @@ public class MultiplierGUI implements ActionListener {
                 for (String s : ipList[0].split("\\.")) {
                     if (!s.matches("[0-9]+") || s.length() > 3 || Integer.parseInt(s) > 255) {
                         NFE = new JLabel("Invalid IP address!");
-                        NFE.setBounds(120, 45, 120, 20);
+                        NFE.setBounds(150, 45, 120, 20);
                         f.add(NFE);
                         SwingUtilities.updateComponentTreeUI(f);
                         return;
@@ -79,7 +80,7 @@ public class MultiplierGUI implements ActionListener {
             }
             if(!ipList[1].matches("[0-9]+")){
                 NFE = new JLabel("Invalid IP address!");
-                NFE.setBounds(120, 45, 120, 20);
+                NFE.setBounds(150, 45, 120, 20);
                 f.add(NFE);
                 SwingUtilities.updateComponentTreeUI(f);
                 return;
@@ -128,8 +129,12 @@ public class MultiplierGUI implements ActionListener {
                 x = 20;
                 y += 25;
             }
-            l1.setBounds(20, 120, 100, 30);
-            l2.setBounds(20+(50*size), 120, 100, 30);
+            l1.setBounds(20, 140, 100, 30);
+            l2.setBounds(20+(50*size), 140, 100, 30);
+            if(calc != null){
+                f.remove(calc);
+            }
+            calc = new JButton("Multiply");
             calc.setBounds(20, y+30, 100, 25);
             lastY = y+30;
             calc.addActionListener(this);
@@ -156,7 +161,7 @@ public class MultiplierGUI implements ActionListener {
                     Matrix1.add(Double.parseDouble(FirstMatrixFields.get(i).getText()));
                 } catch(NumberFormatException exception){
                     NFE = new JLabel(String.format("Wrong input at Matrix1[%d][%d]!", i%size, i/size));
-                    NFE.setBounds(60,  145, 200, 20);
+                    NFE.setBounds(40,  165, 200, 20);
                     f.add(NFE);
                     SwingUtilities.updateComponentTreeUI(f);
                     return;
@@ -165,7 +170,7 @@ public class MultiplierGUI implements ActionListener {
                     Matrix2.add(Double.parseDouble(SecondMatrixFields.get(i).getText()));
                 } catch(NumberFormatException exception){
                     NFE = new JLabel(String.format("Wrong input at Matrix2[%d][%d]!", i%size, i/size));
-                    NFE.setBounds(40, 145, 200, 20);
+                    NFE.setBounds(40, 165, 200, 20);
                     f.add(NFE);
                     SwingUtilities.updateComponentTreeUI(f);
                     return;
@@ -173,21 +178,23 @@ public class MultiplierGUI implements ActionListener {
             }
 
             try {
-                Socket clSocket = new Socket(ipList[0], Integer.parseInt(ipList[1]));
-                out = new PrintWriter(clSocket.getOutputStream());
-                in = new BufferedReader(new InputStreamReader(clSocket.getInputStream()));
+                clSocket = new Socket(ipList[0], Integer.parseInt(ipList[1]));
+                OutputStream out = clSocket.getOutputStream();
+                DataOutputStream dOut = new DataOutputStream(out);
+                InputStream in = clSocket.getInputStream();
+                dIn = new DataInputStream(in);
                 String msg;
                 msg = ":"+size+":";
-                out.print(msg);
-                if(!in.readLine().equals(msg)){
-                    clSocket.close();
-                    out.close();
-                    in.close();
-                    JOptionPane.showMessageDialog(null,"There's been an error. Please try again");
-                }
+
+                dOut.write(msg.getBytes());
+                dOut.flush();
+
                 for(int i=0; i<size*size; ++i){
                     msg = ";"+Matrix1.get(i)+","+Matrix2.get(i)+";";
-                    out.print(msg);
+                    dOut.write(msg.getBytes());
+                    dOut.flush();
+                    byte[] retMsg = new byte[1];
+                    dIn.read(retMsg, 0, 1);
                 }
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(null,"There's been an error. Please try again");
@@ -195,17 +202,37 @@ public class MultiplierGUI implements ActionListener {
 
 
             try {
-                String msg = in.readLine();
-                String[] mat = msg.split(";");
+                ArrayList<String> fin = new ArrayList<>();
+                boolean exit = false;
+                while(true) {
+                    byte[] bytes = new byte[1000];
+                    dIn.read(bytes, 0, 1000);
+                    String msg = new String(bytes);
+                    String[] mat = msg.split(";");
+                    for (String s : mat) {
+                        if (s.equals("")) {
+                            continue;
+                        }
+                        if (s.matches("[$].*")){
+                            exit = true;
+                            break;
+                        }
+                        fin.add(s);
+                    }
+                    if(exit){
+                        break;
+                    }
+                }
                 int x = 20;
                 int y = lastY+40;
                 int z = 0;
+                DecimalFormat df = new DecimalFormat("###.##");
                 for (int i = 0; i < size; ++i) {
                     for (int j = 0; j < size; ++j) {
                         JTextField field = new JTextField();
                         field.setBounds(x, y, 30, 20);
                         field.setEditable(false);
-                        field.setText(mat[z++]);
+                        field.setText(df.format(Double.parseDouble(fin.get(z++))));
                         f.add(field);
                         FinalMatrix.add(field);
                         x += 35;
@@ -216,21 +243,11 @@ public class MultiplierGUI implements ActionListener {
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(null,"There's been an error. Please try again");
             }
-            /*int x = 20;
-            int y = lastY+40;
-            for (int i = 0; i < size; ++i) {
-                for (int j = 0; j < size; ++j) {
-                    JTextField field = new JTextField();
-                    field.setBounds(x, y, 30, 20);
-                    field.setEditable(false);
-                    field.setText("0");
-                    f.add(field);
-                    FinalMatrix.add(field);
-                    x += 35;
-                }
-                x = 20;
-                y += 25;
-            }*/
+            try {
+                clSocket.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
             SwingUtilities.updateComponentTreeUI(f);
         }
     }
