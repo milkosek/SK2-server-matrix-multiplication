@@ -178,9 +178,7 @@ void Calculate(int desc)
 {
     char buf[50];
     bzero(buf, 50);
-    std::cout << "sth\n";
     read(desc, buf, 50);
-    std::cout << "after\n";
     size s;
     sscanf(buf, ":%lu:", &s);
     std::cout << s << std::endl;
@@ -188,19 +186,12 @@ void Calculate(int desc)
     double *Mat1 = new double[s*s];
     double *Mat2 = new double[s*s];
     for(size i = 0; i<s*s; ++i) {
-        std::cout << "loop\n";
         bzero(buf, 50);
         read(desc, buf, 50);
-        std::cout << "loop2\n";
         sscanf(buf, ";%lf,%lf;", &Mat1[i], &Mat2[i]);
         write(desc, "a", 1);
     }
-    for(size i=0; i<s; ++i) {
-        for (size j = 0; j < s; ++j) {
-            std::cout << Mat1[i+j] << " ";
-        }
-        std::cout << "\n";
-    }
+
     Matrix ans = strassen(fillMatrix(Mat1, s), fillMatrix(Mat2, s), s);
     delete Mat1;
     delete Mat2;
